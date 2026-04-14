@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Sprint Planning Assistant — Sport-Soccer R&D
 
 An interactive dashboard for the WSC Sports **Sport-Soccer** R&D squad that pulls together past sprint performance, the current sprint's health, and a view into upcoming work (Q2 goals + backlog).
@@ -65,3 +66,6 @@ See `.gitignore`. In short: any `.env` file, Jira token, scratch JSON results fr
 ---
 
 Maintainer: Yuval Ben Nissan · yuval.bennissan@wsc-sports.com
+=======
+# sprint-planning-assistant
+>>>>>>> 4fb90ff277b1e59a2c7fda975d5b44400cb84f23
