@@ -1,0 +1,31 @@
+# Credentials — never commit
+.env
+.env.local
+*.token
+*.secret
+credentials.json
+
+# Scratch files from data refresh
+jira_results_*.json
+master_data.json
+refresh_data.py
+cors_probe.html
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.swp
+*~
+
+# Python (if anyone runs a local refresh script)
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# Node / misc
+node_modules/
+*.log
