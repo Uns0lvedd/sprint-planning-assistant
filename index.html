@@ -4488,6 +4488,7 @@ function pipeline(subtasks) {
 }
 function filterIssues(issues) {
   return issues.filter(i => {
+    if (i.type === 'Sub-task') return false;
     if (filterMember !== 'all' && i.assignee !== filterMember) return false;
     if (filterType !== 'all' && i.type !== filterType) return false;
     return true;
@@ -4509,6 +4510,7 @@ function destroyChart(id) { if (charts[id]) { charts[id].destroy(); delete chart
 // ─── Returns filtered issues for a given sprint ───────
 function filteredIssues(sprint) {
   return sprint.issues.filter(i => {
+    if (i.type === 'Sub-task') return false;
     if (filterMember !== 'all' && i.rndLead !== filterMember) return false;
     if (filterType !== 'all' && i.type !== filterType) return false;
     return true;
@@ -4824,23 +4826,28 @@ function renderPastSprintData() {
 // ─── TAB: CURRENT SPRINT ────────────────────────────
 function renderCurrentTab() {
   const cs = DATA.currentSprint;
-  const stats = cs.stats;
   let issues = filterIssues(cs.issues);
+
+  // Compute stats dynamically from filtered issues (resilient to any stored field naming)
+  const cDone = issues.filter(i => i.done).length;
+  const cTotal = issues.length;
+  const cCompletionRate = cTotal ? +(cDone / cTotal * 100).toFixed(1) : 0;
+  const cCarryoverRate = cTotal ? +((cTotal - cDone) / cTotal * 100).toFixed(1) : 0;
 
   // Header
   document.getElementById('currentSprintName').textContent = `${cs.meta.label} — Sprint 8`;
   document.getElementById('currentSprintDates').textContent = `${cs.meta.startDate} → ${cs.meta.endDate} · ${cs.daysRemaining} days remaining`;
-  
-  const health = Math.round(stats.completionRate * 0.5 + (100 - stats.carryoverRate) * 0.3);
+
+  const health = Math.round(cCompletionRate * 0.5 + (100 - cCarryoverRate) * 0.3);
   document.getElementById('sprintHealthBadge').innerHTML = healthBadge(health);
-  
-  const doneRate = stats.total ? stats.done / stats.total : 0;
+
+  const doneRate = cTotal ? cDone / cTotal : 0;
   const timeRate = (cs.totalDays - cs.daysRemaining) / cs.totalDays;
   const onTrack = issues.filter(i => i.done || IN_PROGRESS.has(i.status)).length;
   let projHTML = '';
-  if (doneRate >= timeRate * 0.9) projHTML = `<span class="on-track">✅ On Track — ${onTrack} of ${issues.length}</span>`;
-  else if (doneRate >= timeRate * 0.6) projHTML = `<span class="at-risk">⚠️ At Risk — ${onTrack} of ${issues.length} progressing</span>`;
-  else projHTML = `<span class="behind">🔴 Behind — ${onTrack} of ${issues.length} progressing</span>`;
+  if (doneRate >= timeRate * 0.9) projHTML = `<span class="on-track">✅ On Track — ${onTrack} of ${cTotal}</span>`;
+  else if (doneRate >= timeRate * 0.6) projHTML = `<span class="at-risk">⚠️ At Risk — ${onTrack} of ${cTotal} progressing</span>`;
+  else projHTML = `<span class="behind">🔴 Behind — ${onTrack} of ${cTotal} progressing</span>`;
   document.getElementById('projectedStatus').innerHTML = projHTML;
 
   // KPI cards
@@ -4849,8 +4856,8 @@ function renderCurrentTab() {
   const inprog = issues.filter(i => IN_PROGRESS.has(i.status)).length;
   const todo = issues.filter(i => !i.done && !IN_PROGRESS.has(i.status) && i.status !== 'Blocked').length;
   document.getElementById('currentKpis').innerHTML = `
-    <div class="kpi-card kpi-blue"><div class="kpi-label">Total</div><div class="kpi-value">${issues.length}</div></div>
-    <div class="kpi-card kpi-green"><div class="kpi-label">Done</div><div class="kpi-value">${stats.done}</div><div class="kpi-sub">${stats.completionRate}%</div></div>
+    <div class="kpi-card kpi-blue"><div class="kpi-label">Total</div><div class="kpi-value">${cTotal}</div></div>
+    <div class="kpi-card kpi-green"><div class="kpi-label">Done</div><div class="kpi-value">${cDone}</div><div class="kpi-sub">${cCompletionRate}%</div></div>
     <div class="kpi-card"><div class="kpi-label">In Progress</div><div class="kpi-value" style="color:var(--blue);">${inprog}</div></div>
     <div class="kpi-card"><div class="kpi-label">Not Started</div><div class="kpi-value" style="color:var(--text-muted);">${todo}</div></div>
     <div class="kpi-card kpi-${atRisk > 3 ? 'red' : atRisk > 0 ? 'yellow' : ''}"><div class="kpi-label">⚠ At Risk</div><div class="kpi-value">${atRisk}</div><div class="kpi-sub">≤5 days left + unstarted</div></div>
@@ -4987,17 +4994,19 @@ function renderFutureTab() {
   
   buildQ2StatusChart();
 
-  // Capacity suggestion
+  // Capacity suggestion — compute from last 3 sprints' actual completed issue counts (no sub-tasks)
+  const recentSprints = DATA.pastSprints.slice(-3);
+  const avgCompleted = Math.round(recentSprints.reduce((a, s) => a + filteredIssues(s).filter(i => i.done).length, 0) / recentSprints.length);
   document.getElementById('capacitySuggestion').innerHTML = `
     <div style="background:var(--surface2);border-radius:8px;padding:14px;margin-bottom:12px;">
-      <div style="font-size:13px;color:var(--text-muted);margin-bottom:6px;">Based on the last 3 sprints</div>
-      <div style="font-size:24px;font-weight:700;color:var(--blue);margin-bottom:4px;">${(avgV/8).toFixed(1)}d</div>
-      <div style="font-size:13px;color:var(--text-muted);">recommended capacity for Sprint 9</div>
+      <div style="font-size:13px;color:var(--text-muted);margin-bottom:6px;">Based on the last ${recentSprints.length} sprints</div>
+      <div style="font-size:24px;font-weight:700;color:var(--blue);margin-bottom:4px;">${avgCompleted} issues</div>
+      <div style="font-size:13px;color:var(--text-muted);">avg completed per sprint (excl. sub-tasks)</div>
     </div>
     <div style="font-size:13px;color:var(--text-muted);line-height:1.6;">
       <strong style="color:var(--text);">Suggested approach for Sprint 9:</strong><br>
       Prioritise unfinished Q2 goal stories from the backlog, then fill remaining capacity
-      with high-priority bug fixes. With ${(avgV/8).toFixed(1)}d available, aim for 3–4 stories with full subtask coverage.
+      with high-priority bug fixes. Aim to commit ~${avgCompleted} issues based on recent velocity.
     </div>
   `;
 
