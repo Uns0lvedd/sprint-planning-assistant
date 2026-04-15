@@ -4457,6 +4457,7 @@ function healthBadge(score) {
   return `<span class="health-badge health-red">● ${score} At Risk</span>`;
 }
 function pipeline(subtasks) {
+  subtasks = subtasks || [];
   const TYPES = ['BE','FE','QA','TR'];
   let html = '<div class="pipeline">';
   const byType = {};
